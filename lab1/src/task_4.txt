@@ -1,0 +1,8 @@
+* Напишите скрипт `average.sh`, который выводит количество и среднее арифмитическое его входных аргументов.
+> average.sh
+
+* С помощью `bash` и `dev/random` создайте файл `numbers.txt` из 150 рандомных чисел.
+$ for i in {1..150}; do (od -vAn -N1 -tu1 < /dev/random) >> numbers.txt; done
+
+* "Скормите" скрипту `average.sh` значения из файла `numbers.txt`.
+$ ./average.sh $(cat numbers.txt)

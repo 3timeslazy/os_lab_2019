@@ -1,0 +1,5 @@
+* С помощью команды `grep`, используя `pipe` и редирект (`>`), запишите в файл `with_cake.txt` все строчки из файла `cake_rhymes.txt`, в которых есть слово `cake`.
+$ cat cake_rhymes.txt | grep cake > with_cake.txt
+
+* Сделайте команду `rm` "тихой", используя редирект в `/dev/null`.
+$ rm any_file &> /dev/null
