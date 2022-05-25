@@ -92,58 +92,76 @@ int main(int argc, char **argv) {
 
   int *array = malloc(sizeof(int) * array_size);
   GenerateArray(array, array_size, seed);
+
+  // for (int i = 0; i < array_size; i++) {
+  //   array[i] = i;
+  // }
+
   int active_child_processes = 0;
 
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
 
+  pnum = pnum > array_size ? array_size : pnum;
+
+  int results_fd[2];
+  pipe(results_fd);
+  int minmax_rd = results_fd[0];
+  int minmax_wr = results_fd[1];
+  int chunk_size = array_size / pnum;
+
   for (int i = 0; i < pnum; i++) {
     pid_t child_pid = fork();
-    if (child_pid >= 0) {
-      // successful fork
-      active_child_processes += 1;
-      if (child_pid == 0) {
-        // child process
-
-        // parallel somehow
-
-        if (with_files) {
-          // use files here
-        } else {
-          // use pipe here
-        }
-        return 0;
-      }
-
-    } else {
+    if (child_pid < 0) {
       printf("Fork failed!\n");
       return 1;
+    }
+    // successful fork
+    active_child_processes += 1;
+
+    // child process
+    if (child_pid == 0) {
+      if (with_files) {
+        // use files here
+        return 1;
+      }
+
+      // use pipe here
+      int begin = i * chunk_size;
+      int end = i * chunk_size + chunk_size;
+      if (end > array_size) { end = array_size; }
+
+      struct MinMax min_max = GetMinMax(array, begin, end);
+      write(minmax_wr, &min_max, sizeof(&min_max));
+
+      return 0;
     }
   }
 
   while (active_child_processes > 0) {
-    // your code here
-
+    wait(NULL);
     active_child_processes -= 1;
   }
+  close(minmax_wr);
 
   struct MinMax min_max;
   min_max.min = INT_MAX;
   min_max.max = INT_MIN;
 
   for (int i = 0; i < pnum; i++) {
-    int min = INT_MAX;
-    int max = INT_MIN;
-
     if (with_files) {
       // read from files
-    } else {
-      // read from pipes
+      continue;
     }
 
-    if (min < min_max.min) min_max.min = min;
-    if (max > min_max.max) min_max.max = max;
+    // read from pipe
+    struct MinMax mm;
+    read(minmax_rd, &mm, sizeof(&mm));
+
+    if (mm.min < min_max.min) min_max.min = mm.min;
+    if (mm.max > min_max.max) min_max.max = mm.max;
   }
+  close(minmax_rd);
 
   struct timeval finish_time;
   gettimeofday(&finish_time, NULL);
