@@ -92,10 +92,7 @@ int main(int argc, char **argv) {
 
   int *array = malloc(sizeof(int) * array_size);
   GenerateArray(array, array_size, seed);
-
-  // for (int i = 0; i < array_size; i++) {
-  //   array[i] = i;
-  // }
+  
 
   int active_child_processes = 0;
 
@@ -104,10 +101,15 @@ int main(int argc, char **argv) {
 
   pnum = pnum > array_size ? array_size : pnum;
 
+  // pipes
   int results_fd[2];
   pipe(results_fd);
   int minmax_rd = results_fd[0];
   int minmax_wr = results_fd[1];
+
+  // files
+  char* fname_tmpl = "/tmp/lab3_parallel_min_max_%d";
+
   int chunk_size = array_size / pnum;
 
   for (int i = 0; i < pnum; i++) {
@@ -121,19 +123,28 @@ int main(int argc, char **argv) {
 
     // child process
     if (child_pid == 0) {
-      if (with_files) {
-        // use files here
-        return 1;
-      }
-
-      // use pipe here
       int begin = i * chunk_size;
       int end = i * chunk_size + chunk_size;
       if (end > array_size) { end = array_size; }
-
       struct MinMax min_max = GetMinMax(array, begin, end);
-      write(minmax_wr, &min_max, sizeof(&min_max));
 
+      if (with_files) {
+        char fname[1000];
+        sprintf(fname, fname_tmpl, i);
+
+        FILE* fptr = fopen(fname, "w");
+        if (fptr == NULL) {
+          printf("failed to create file!\n");
+          return 1;
+        }
+
+        fprintf(fptr, "%d_%d", min_max.min, min_max.max);
+        fclose(fptr);
+
+      } else {
+        write(minmax_wr, &min_max, sizeof(&min_max));
+      }
+  
       return 0;
     }
   }
@@ -149,14 +160,23 @@ int main(int argc, char **argv) {
   min_max.max = INT_MIN;
 
   for (int i = 0; i < pnum; i++) {
-    if (with_files) {
-      // read from files
-      continue;
-    }
-
-    // read from pipe
     struct MinMax mm;
-    read(minmax_rd, &mm, sizeof(&mm));
+
+    if (with_files) {
+        char fname[1000];
+        sprintf(fname, fname_tmpl, i);
+
+        FILE* fptr = fopen(fname, "r");
+        if (fptr == NULL) {
+          printf("failed to read file!\n");
+          return 1;
+        }
+
+        fscanf(fptr, "%d_%d", &mm.min, &mm.max);
+        fclose(fptr);
+    } else {
+      read(minmax_rd, &mm, sizeof(&mm));
+    }
 
     if (mm.min < min_max.min) min_max.min = mm.min;
     if (mm.max > min_max.max) min_max.max = mm.max;
