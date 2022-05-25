@@ -1,6 +1,9 @@
 CC=gcc
 CFLAGS=-I.
 
+execer: execer.c
+	$(CC) -o execer execer.c $(CFLAGS)
+
 sequential_min_max : utils.o find_min_max.o utils.h find_min_max.h
 	$(CC) -o sequential_min_max find_min_max.o utils.o sequential_min_max.c $(CFLAGS)
 
@@ -14,6 +17,6 @@ find_min_max.o : utils.h find_min_max.h
 	$(CC) -o find_min_max.o -c find_min_max.c $(CFLAGS)
 
 clean :
-	- rm utils.o find_min_max.o sequential_min_max parallel_min_max 2> /dev/null
+	- rm utils.o find_min_max.o sequential_min_max parallel_min_max execer 2> /dev/null
 
-all : clean sequential_min_max parallel_min_max
+all : clean sequential_min_max parallel_min_max execer
