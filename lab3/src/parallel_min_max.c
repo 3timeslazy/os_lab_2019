@@ -10,27 +10,16 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <signal.h>
-#include <unistd.h>
-#include <errno.h>
-
 #include <getopt.h>
 
 #include "find_min_max.h"
 #include "utils.h"
 
-void alarm_handler(int);
-pid_t* child_pids;
-int pnum;
-int active_child_processes;
-
 int main(int argc, char **argv) {
   int seed = -1;
   int array_size = -1;
-  pnum = -1;
+  int pnum = -1;
   bool with_files = false;
-  int timeout = -1;
-  int timeout_tmp;
 
   while (true) {
     int current_optind = optind ? optind : 1;
@@ -39,7 +28,6 @@ int main(int argc, char **argv) {
                                       {"array_size", required_argument, 0, 0},
                                       {"pnum", required_argument, 0, 0},
                                       {"by_files", no_argument, 0, 'f'},
-                                      {"timeout", required_argument, 0, 0},
                                       {0, 0, 0, 0}};
 
     int option_index = 0;
@@ -74,14 +62,6 @@ int main(int argc, char **argv) {
           case 3:
             with_files = true;
             break;
-          case 4:
-            timeout_tmp = atoi(optarg);
-            if (timeout_tmp <= 0) {
-              printf("timeout must be a positive number\n");
-              return 1;
-            }
-            timeout = timeout_tmp;
-            break;
 
           defalut:
             printf("Index %d is out of options\n", option_index);
@@ -114,7 +94,7 @@ int main(int argc, char **argv) {
   GenerateArray(array, array_size, seed);
   
 
-  active_child_processes = 0;
+  int active_child_processes = 0;
 
   struct timeval start_time;
   gettimeofday(&start_time, NULL);
@@ -131,7 +111,6 @@ int main(int argc, char **argv) {
   char* fname_tmpl = "/tmp/lab3_parallel_min_max_%d";
 
   int chunk_size = array_size / pnum;
-  child_pids = malloc(sizeof(pid_t) * pnum);
 
   for (int i = 0; i < pnum; i++) {
     pid_t child_pid = fork();
@@ -141,15 +120,6 @@ int main(int argc, char **argv) {
     }
     // successful fork
     active_child_processes += 1;
-
-    // parent process
-    if (child_pid > 0) {
-      if (timeout < 0) continue;
-      
-      signal(SIGALRM, alarm_handler);
-      alarm(timeout);
-      child_pids[i] = child_pid;
-    }
 
     // child process
     if (child_pid == 0) {
@@ -226,21 +196,4 @@ int main(int argc, char **argv) {
   printf("Elapsed time: %fms\n", elapsed_time);
   fflush(NULL);
   return 0;
-}
-
-void alarm_handler(int sig) {
-  for (int i = 0; i < pnum; i++) {
-    kill(child_pids[i], SIGKILL);
-  }
-  while (active_child_processes >= 0) {
-    int wp = waitpid(-1, NULL, WNOHANG);
-    if (wp == -1) {
-      printf("waidpid error: %d\n", errno);
-      break;
-    }
-    active_child_processes -= 1;
-  }
-  
-  printf("Exit by timeout\n");
-  exit(0);
 }
