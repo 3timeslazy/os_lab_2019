@@ -8,6 +8,7 @@
 #include <pthread.h>
 
 #include "parallel_sum.h"
+#include "utils.h"
 
 struct SumArgs {
   int *array;
@@ -17,7 +18,11 @@ struct SumArgs {
 
 int Sum(const struct SumArgs *args) {
   int sum = 0;
-  // TODO: your code here 
+
+  for (int i = args->begin; i < args->end; i++) {
+    sum += args->array[i];
+  }
+
   return sum;
 }
 
@@ -28,30 +33,33 @@ void *ThreadSum(void *args) {
 
 int main(int argc, char **argv) {
   struct CmdOpts cmd_opts = parseOpts(argc, argv);
-  // printf("threads_num: %d, array_msize: %d, seed: %d\n", cmd_opts.threads_num, cmd_opts.array_size, cmd_opts.seed);
-
-  uint32_t threads_num = 0;
-  uint32_t array_size = 0;
-  uint32_t seed = 0;
+  
+  uint32_t threads_num = cmd_opts.threads_num;
+  uint32_t array_size = cmd_opts.array_size;
+  uint32_t seed = cmd_opts.seed;
   pthread_t threads[threads_num];
 
-  /*
-   * TODO:
-   * your code here
-   * Generate array here
-   */
+  threads_num = threads_num > array_size ? array_size : threads_num;
 
   int *array = malloc(sizeof(int) * array_size);
+  GenerateArray(array, array_size, seed);
+
+  int chunk_size = array_size / threads_num;
 
   struct SumArgs args[threads_num];
   for (uint32_t i = 0; i < threads_num; i++) {
-    if (pthread_create(&threads[i], NULL, ThreadSum, (void *)&args)) {
+    args[i].array = array;
+    args[i].begin = i * chunk_size;
+    args[i].end = i * chunk_size + chunk_size;
+    if (args[i].end > array_size) { args[i].end = array_size; }
+
+    if (pthread_create(&threads[i], NULL, ThreadSum, (void *)&args[i])) {
       printf("Error: pthread_create failed!\n");
       return 1;
     }
   }
 
-  int total_sum = 0;
+  unsigned long long total_sum = 0;
   for (uint32_t i = 0; i < threads_num; i++) {
     int sum = 0;
     pthread_join(threads[i], (void **)&sum);
@@ -59,7 +67,7 @@ int main(int argc, char **argv) {
   }
 
   free(array);
-  printf("Total: %d\n", total_sum);
+  printf("Total: %llu\n", total_sum);
   return 0;
 }
 
