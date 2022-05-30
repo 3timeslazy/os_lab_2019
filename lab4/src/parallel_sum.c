@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <sys/time.h>
 
 #include <getopt.h>
 
@@ -29,6 +30,9 @@ int main(int argc, char **argv) {
   int *array = malloc(sizeof(int) * array_size);
   GenerateArray(array, array_size, seed);
 
+  struct timeval start_time;
+  gettimeofday(&start_time, NULL);
+
   int chunk_size = array_size / threads_num;
 
   struct SumArgs args[threads_num];
@@ -51,8 +55,15 @@ int main(int argc, char **argv) {
     total_sum += sum;
   }
 
+  struct timeval finish_time;
+  gettimeofday(&finish_time, NULL);
+
+  double elapsed_time = (finish_time.tv_sec - start_time.tv_sec) * 1000.0;
+  elapsed_time += (finish_time.tv_usec - start_time.tv_usec) / 1000.0;
+
   free(array);
   printf("Total: %llu\n", total_sum);
+  printf("Elapsed time: %fms\n", elapsed_time);
   return 0;
 }
 
