@@ -7,15 +7,26 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <stdbool.h>
+#include <getopt.h>
 
-#define SERV_PORT 20001
-#define BUFSIZE 1024
+#include "util.h"
+
 #define SADDR struct sockaddr
 #define SLEN sizeof(struct sockaddr_in)
 
-int main() {
+struct CmdOpts {
+  int bufsize;
+  int serv_port;
+};
+
+struct CmdOpts parseOpts(int argc, char **argv);
+
+int main(int argc, char **argv) {
+  struct CmdOpts cmd_opts = parseOpts(argc, argv);
+
   int sockfd, n;
-  char mesg[BUFSIZE], ipadr[16];
+  char mesg[cmd_opts.bufsize], ipadr[16];
   struct sockaddr_in servaddr;
   struct sockaddr_in cliaddr;
 
@@ -27,7 +38,7 @@ int main() {
   memset(&servaddr, 0, SLEN);
   servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  servaddr.sin_port = htons(SERV_PORT);
+  servaddr.sin_port = htons(cmd_opts.serv_port);
 
   if (bind(sockfd, (SADDR *)&servaddr, SLEN) < 0) {
     perror("bind problem");
@@ -38,7 +49,7 @@ int main() {
   while (1) {
     unsigned int len = SLEN;
 
-    if ((n = recvfrom(sockfd, mesg, BUFSIZE, 0, (SADDR *)&cliaddr, &len)) < 0) {
+    if ((n = recvfrom(sockfd, mesg, cmd_opts.bufsize, 0, (SADDR *)&cliaddr, &len)) < 0) {
       perror("recvfrom");
       exit(1);
     }
@@ -53,4 +64,66 @@ int main() {
       exit(1);
     }
   }
+}
+
+struct CmdOpts parseOpts(int argc, char **argv) {
+  struct CmdOpts cmd_opts = {1024, 20001}; // default value
+  int bufsize;
+  int port;
+
+  while (true) {
+    static struct option options[] = {{"bufsize", required_argument, 0, 0},
+                                      {"serv_port", required_argument, 0, 0},
+                                      {0, 0, 0, 0}};
+
+    int option_index = 0;
+    int c = getopt_long(argc, argv, "f", options, &option_index);
+
+    if (c == -1) break;
+
+    switch (c) {
+      case 0:
+        switch (option_index) {
+          case 0:
+            bufsize = atoi(optarg);
+            if (bufsize <= 0) {
+              printf("bufsize must be a positive number\n");
+              exit(1);
+            }
+            cmd_opts.bufsize = bufsize;
+            break;
+          case 1:
+            port = atoi(optarg);
+            if (port < 1024 || port > 65535) {
+              printf("port number should be in range [1024; 65535]");
+              exit(1);
+            }
+            cmd_opts.serv_port = port;
+          default:
+            printf("Index %d is out of options\n", option_index);
+        }
+        break;
+
+      case '?':
+        break;
+
+      default:
+        printf("getopt returned character code 0%o?\n", c);
+    }
+  }
+
+  for (int i = 0; i < argc; i++) {
+    if (!strcmp(argv[i], "--serv_port")) {
+      shift_opt(&argc, i, argv);
+      break;
+    }
+  }
+  for (int i = 0; i < argc; i++) {
+    if (!strcmp(argv[i], "--bufsize")) {
+      shift_opt(&argc, i, argv);
+      break;
+    }
+  }
+
+  return cmd_opts;
 }
