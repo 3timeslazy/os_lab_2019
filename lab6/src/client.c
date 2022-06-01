@@ -46,19 +46,6 @@ void doreq(struct DoreqArgs* args);
 uint64_t total = 1;
 pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
-uint64_t MultModulo(uint64_t a, uint64_t b, uint64_t mod) {
-  uint64_t result = 0;
-  a = a % mod;
-  while (b > 0) {
-    if (b % 2 == 1)
-      result = (result + a) % mod;
-    a = (a * 2) % mod;
-    b /= 2;
-  }
-
-  return result % mod;
-}
-
 bool ConvertStringToUI64(const char *str, uint64_t *val) {
   char *end = NULL;
   unsigned long long i = strtoull(str, &end, 10);
@@ -127,8 +114,6 @@ void doreq(struct DoreqArgs* args) {
   uint64_t mod = args->mod;
   int servers_num = args->serv_array.length;
   struct Server to = args->serv_array.servers[i];
-
-  printf("req to %s:%d\n", to.ip, to.port);
 
   struct hostent *hostname = gethostbyname(to.ip);
   if (hostname == NULL) {
